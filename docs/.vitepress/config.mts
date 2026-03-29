@@ -4,7 +4,6 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "Documentation",
   description: "acts as a \"Data Firewall.\" It sits between a user's prompt and the LLM. It uses deterministic algorithms (Regex, Luhn's Algorithm, and Entropy checks) to scrub sensitive data.",
-  base: '/artifact-shield/',
   ignoreDeadLinks: true,
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
