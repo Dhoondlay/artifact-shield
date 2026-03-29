@@ -46,9 +46,10 @@ class AdminControllerTest {
     @WithMockUser
     @DisplayName("POST /api/admin/patterns: Creates new pattern")
     void savesPattern() {
+        String uniqueName = "TEST_PATTERN_" + java.util.UUID.randomUUID().toString();
         ShieldPattern pattern = ShieldPattern.builder()
                 .detectorName("custom")
-                .patternName("TEST_PATTERN")
+                .patternName(uniqueName)
                 .regex("\\d{5}")
                 .riskWeight(10)
                 .build();
@@ -59,7 +60,7 @@ class AdminControllerTest {
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.patternName").isEqualTo("TEST_PATTERN");
+                .jsonPath("$.patternName").isEqualTo(uniqueName);
     }
 
     @Test

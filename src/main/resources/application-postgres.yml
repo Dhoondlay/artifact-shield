@@ -1,0 +1,20 @@
+spring:
+  config:
+    activate:
+      on-profile: postgres
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/shield}
+    username: ${SPRING_DATASOURCE_USERNAME:shield_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:shield_pass}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+
+  # H2 Console is not needed for Postgres
+  h2:
+    console:
+      enabled: false

@@ -9,14 +9,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-@Transactional
+@SpringBootTest(properties = "shield.block-critical-risk=true")
 @DisplayName("RedactionService tests")
 class RedactionServiceTest {
 
@@ -32,11 +30,17 @@ class RedactionServiceTest {
     @org.springframework.boot.test.mock.mockito.MockBean
     private DownstreamProxyClient proxyClient;
 
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        auditLogRepository.deleteAll();
+        downstreamRepository.deleteAll();
+    }
+
     @Test
     @DisplayName("Action R: Redacts email and logs audit")
     void actionRRedactsAndLogs() {
         String input = "My email is test@example.com";
-        ShieldResult result = redactionService.process(input, "R", null);
+        ShieldResult result = redactionService.process(input, "R", null).block();
 
         assertThat(result.sanitizedText()).contains("[REDACTED_EMAIL]");
         assertThat(result.detections()).contains("EMAIL");
@@ -53,7 +57,7 @@ class RedactionServiceTest {
     @DisplayName("Action A: Analyzes without redacting")
     void actionAAnalyzesOnly() {
         String input = "My email is test@example.com";
-        ShieldResult result = redactionService.process(input, "A", null);
+        ShieldResult result = redactionService.process(input, "A", null).block();
 
         assertThat(result.sanitizedText()).isEqualTo(input);
         assertThat(result.detections()).contains("EMAIL");
@@ -65,24 +69,18 @@ class RedactionServiceTest {
     void actionFBlocksCritical() {
         // High risk input: multiple patterns
         String input = "AWS Key: AKIAIOSFODNN7EXAMPLE, Email: test@example.com, Card: 4111111111111111, IP: 1.1.1.1, Private Key: -----BEGIN RSA PRIVATE KEY-----";
-        ShieldResult result = redactionService.process(input, "F", null);
+        ShieldResult result = redactionService.process(input, "F", null).block();
 
         assertThat(result.severity()).isEqualTo(ThreatSeverity.CRITICAL);
-        assertThat(result.llmResponse()).startsWith("BLOCKED");
+        assertThat(result.llmResponse()).startsWith("BLOCKED: Critical risk score");
         assertThat(result.wasProxied()).isFalse();
     }
 
     @Test
     @DisplayName("Calculate severity logic")
     void testSeverityCalculation() {
-        assertThat(redactionService.process("clean text", "R", null).severity()).isEqualTo(ThreatSeverity.CLEAN);
-        assertThat(redactionService.process("test@example.com", "R", null).riskScore()).isGreaterThan(0);
-
-        // Manual severity checks if I want to be 100% sure we hit all branches
-        // Using enough patterns to hit HIGH (50+)
-        String highRisk = "Email: test@example.com, IP: 1.1.1.1, AWS: AKIAIOSFODNN7EXAMPLE"; // 25 + 20 + 40 = 85
-                                                                                             // (Critical)
-        // Wait, I'll just check if I can hit them via score thresholds
+        assertThat(redactionService.process("clean text", "R", null).block().severity()).isEqualTo(ThreatSeverity.CLEAN);
+        assertThat(redactionService.process("test@example.com", "R", null).block().riskScore()).isGreaterThan(0);
     }
 
     @Test
@@ -98,9 +96,9 @@ class RedactionServiceTest {
         org.mockito.Mockito
                 .when(proxyClient.forwardToDownstream(org.mockito.ArgumentMatchers.any(),
                         org.mockito.ArgumentMatchers.anyString()))
-                .thenReturn("LLM Response");
+                .thenReturn(reactor.core.publisher.Mono.just("LLM Response"));
 
-        ShieldResult result = redactionService.process("Hello world", "F", "test-f");
+        ShieldResult result = redactionService.process("Hello world", "F", "test-f").block();
 
         assertThat(result.wasProxied()).isTrue();
         assertThat(result.llmResponse()).isEqualTo("LLM Response");
@@ -118,18 +116,18 @@ class RedactionServiceTest {
         org.mockito.Mockito
                 .when(proxyClient.forwardToDownstream(org.mockito.ArgumentMatchers.any(),
                         org.mockito.ArgumentMatchers.anyString()))
-                .thenThrow(new RuntimeException("Connect Timeout"));
+                .thenReturn(reactor.core.publisher.Mono.error(new RuntimeException("Connect Timeout")));
 
-        ShieldResult result = redactionService.process("Hello", "F", "test-error");
-        assertThat(result.llmResponse()).contains("Error: downstream call failed");
+        ShieldResult result = redactionService.process("Hello", "F", "test-error").block();
+        assertThat(result.llmResponse()).contains("Error: service temporarily unavailable");
     }
 
     @Test
     @DisplayName("Action F: No downstream found")
     void actionFNoDownstream() {
         downstreamRepository.deleteAll();
-        ShieldResult result = redactionService.process("Hello", "F", "missing");
-        assertThat(result.llmResponse()).contains("Error: no active downstream found");
+        ShieldResult result = redactionService.process("Hello", "F", "missing").block();
+        assertThat(result.llmResponse()).contains("Error: no active downstream gateway found");
     }
 
 }

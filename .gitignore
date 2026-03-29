@@ -41,3 +41,9 @@ hs_err_pid*
 replay_pid*
 .mtj.tmp/
 *.ctxt
+
+# --- Node / VitePress ---
+node_modules/
+package-lock.json
+docs/.vitepress/dist
+docs/.vitepress/cache

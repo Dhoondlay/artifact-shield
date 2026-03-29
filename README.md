@@ -4,6 +4,28 @@
 
 ---
 
+### 🌐 [Live Documentation Site](https://dhoondlay.github.io/artifact-shield/)
+*The definitive guide for installation, deployment, and security hardening.*
+
+---
+
+## 📚 Documentation Index
+
+To get started with Artifact-Shield, please refer to our comprehensive documentation library:
+
+*   **[Troubleshooting Guide](./docs/troubleshooting.md)**: Resolution for SSL, DB locks, and performance issues.
+*   **[Enterprise Security (OIDC)](./docs/security-integration.md)**: Connect with Azure AD, Okta, and Keycloak.
+*   **[Database Migration](./docs/database-migration.md)**: Move from H2 to Production PostgreSQL.
+*   **[Observability & Monitoring](./docs/observability.md)**: Prometheus, Grafana, and Splunk setup.
+*   **[Feature Deep-Dive](./docs/feature-guide.md)**: Technical overview of core system pillars.
+*   **[Configuration Reference](./docs/configuration-reference.md)**: Every YAML key and DB table explained.
+*   **[Developer Guide](./docs/developer-guide.md)**: How to add new custom detectors.
+*   **[Security Scenarios](./docs/scenarios.md)**: Benchmark outputs for different risk levels.
+*   **[Contributing Guide](./CONTRIBUTING.md)**: Standard for community participation.
+*   **[Security Policy](./SECURITY.md)**: Responsible disclosure process.
+
+---
+
 ## 🏗️ High-Level Architecture & Request Lifecycle
 
 Artifact-Shield is built on a **fully reactive, non-blocking stack** (Spring WebFlux + Project Reactor) to support high-concurrency enterprise proxying. 

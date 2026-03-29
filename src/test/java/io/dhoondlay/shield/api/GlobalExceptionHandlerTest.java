@@ -24,7 +24,7 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleIllegalArgument(new IllegalArgumentException("invalid"));
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         ErrorResponse body = response.getBody();
-        assertThat(body).isNotNull();
+        assert body != null;
         assertThat(body.error()).isEqualTo("BAD_REQUEST");
     }
 
@@ -34,7 +34,7 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleConstraintViolation(new ConstraintViolationException("violated", null));
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         ErrorResponse body = response.getBody();
-        assertThat(body).isNotNull();
+        assert body != null;
         assertThat(body.error()).isEqualTo("CONSTRAINT_VIOLATION");
     }
 
@@ -44,7 +44,7 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleUnknown(new RuntimeException("oops"));
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         ErrorResponse body = response.getBody();
-        assertThat(body).isNotNull();
+        assert body != null;
         assertThat(body.error()).isEqualTo("INTERNAL_ERROR");
     }
 }

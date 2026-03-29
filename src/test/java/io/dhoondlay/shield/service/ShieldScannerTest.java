@@ -25,14 +25,14 @@ class ShieldScannerTest {
     private Detector detector;
 
     @Test
-    @DisplayName("Calls enabled detector and collects matches")
+    @DisplayName("Calls enabled detector and collects matches (Parallel)")
     void callsEnabledDetector() {
         when(detector.isEnabled()).thenReturn(true);
         when(detector.detect(anyString())).thenReturn(List.of(
             new DetectionMatch("test", "A", 0, 5, "hello", 1, "[R]")
         ));
 
-        List<DetectionMatch> matches = scanner.scan("hello world");
+        List<DetectionMatch> matches = scanner.scanParallel("hello world").block();
 
         assertThat(matches).isNotEmpty();
         assertThat(matches.get(0).patternName()).isEqualTo("A");
@@ -42,7 +42,7 @@ class ShieldScannerTest {
     @DisplayName("Skips disabled detector")
     void skipsDisabledDetector() {
         when(detector.isEnabled()).thenReturn(false);
-        List<DetectionMatch> matches = scanner.scan("test");
+        List<DetectionMatch> matches = scanner.scanParallel("test").block();
         assertThat(matches).isEmpty();
     }
 
@@ -52,7 +52,7 @@ class ShieldScannerTest {
         when(detector.isEnabled()).thenReturn(true);
         when(detector.detect(anyString())).thenThrow(new RuntimeException("Oops"));
 
-        List<DetectionMatch> matches = scanner.scan("test");
+        List<DetectionMatch> matches = scanner.scanParallel("test").block();
         assertThat(matches).isEmpty(); // Logged but didn't crash
     }
 }

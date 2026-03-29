@@ -7,11 +7,13 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password: password
-    # --- Connection Pooling (Hikari) ---
+    # --- Connection Pooling (Hikari) Tuning for High Concurrency ---
+    # Since JPA is offloaded to a boundedElastic pool, we increase the size
+    # slightly to handle mass audit logs during 100k user bursts.
     hikari:
       pool-name: ShieldHikariCP
-      maximum-pool-size: 15
-      minimum-idle: 3
+      maximum-pool-size: 50
+      minimum-idle: 10
       idle-timeout: 30000
       max-lifetime: 1800000
       connection-timeout: 30000
@@ -24,10 +26,13 @@ spring:
     open-in-view: false
     properties:
       hibernate:
-        format_sql: true
-        jdbc.batch_size: 25
+        format_sql: false
+        jdbc.batch_size: 50
         order_inserts: true
         order_updates: true
+        # High-concurrency performance tuning
+        connection.provider_disables_autocommit: true
+        generate_statistics: false
 
   # --- H2 Console ---
   h2:
@@ -58,7 +63,14 @@ server:
   port: 8080
   compression:
     enabled: true
-    mime-types: application/json,text/html,text/xml,text/plain
+    min-response-size: 1024
+    mime-types: application/json,text/html,text/xml,text/plain,application/javascript,text/css
+  # Netty HTTP/2 and Resource Tuning
+  http2:
+    enabled: true
+  netty:
+    connection-timeout: 10s
+    max-keep-alive-requests: 1000
   # --- SSL (Server Entry Point) ---
   # ssl:
   #   key-store: "file:./certs/server-keystore.p12"

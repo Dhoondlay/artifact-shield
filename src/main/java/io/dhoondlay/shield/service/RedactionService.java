@@ -39,39 +39,43 @@ public class RedactionService {
             long start = System.currentTimeMillis();
             String effectiveAction = (action == null || action.isBlank()) ? "R" : action.toUpperCase();
 
-            // 1. Synchronous Scan (CPU-bound)
-            List<DetectionMatch> matches = scanner.scan(rawText);
-            int riskScore = Math.min(100, matches.stream().mapToInt(DetectionMatch::riskWeight).sum());
-            ThreatSeverity severity = calculateSeverity(riskScore);
-            List<String> detections = matches.stream().map(DetectionMatch::patternName).distinct().toList();
+            // 1. Multi-threaded Parallel Scan (CPU-intensive)
+            return scanner.scanParallel(rawText).flatMap(matches -> {
+                int riskScore = Math.min(100, matches.stream().mapToInt(DetectionMatch::riskWeight).sum());
+                ThreatSeverity severity = calculateSeverity(riskScore);
+                List<String> detections = matches.stream().map(DetectionMatch::patternName).distinct().toList();
 
-            log.info("[REACTIVE-SHIELD] action={} matches={} risk={} severity={}", effectiveAction, matches.size(), riskScore, severity);
+                log.info("[MULTI-THREAD-100K] action={} matches={} risk={} severity={}", effectiveAction, matches.size(), riskScore, severity);
 
-            // 2. Decide next steps (Redact, Forward, etc.)
-            if ("A".equals(effectiveAction)) {
-                return finalizeResult(rawText, null, severity, riskScore, detections, false, start, effectiveAction, forwardToAlias);
-            }
-
-            String sanitizedText = applyRedactions(rawText, matches);
-
-            if ("F".equals(effectiveAction)) {
-                if (severity == ThreatSeverity.CRITICAL && shieldProperties.isBlockCriticalRisk()) {
-                    return finalizeResult(sanitizedText, "BLOCKED: Request blocked due to CRITICAL risk score (" + riskScore + ").", severity, riskScore, detections, false, start, effectiveAction, forwardToAlias);
+                // Analyze only (A)
+                if ("A".equals(effectiveAction)) {
+                    return finalizeResult(rawText, null, severity, riskScore, detections, false, start, effectiveAction, forwardToAlias);
                 }
 
-                log.debug("[REACTIVE-SHIELD] Forwarding sanitized text. Risk severity: {}", severity);
+                // Apply redactions for R and F
+                String sanitizedText = applyRedactions(rawText, matches);
 
-                // Call downstream reactively
-                return resolveDownstreamReactive(forwardToAlias)
-                    .flatMap(config -> proxyClient.forwardToDownstream(config, sanitizedText)
-                        .map(llmResp -> new ProcessingResult(sanitizedText, llmResp, true, config.getAlias()))
-                        .onErrorResume(e -> Mono.just(new ProcessingResult(sanitizedText, "Error: downstream call failed — " + e.getMessage(), false, forwardToAlias))))
-                    .defaultIfEmpty(new ProcessingResult(sanitizedText, "Error: no active downstream found", false, null))
-                    .flatMap(res -> finalizeResult(res.sanitizedText, res.llmResponse, severity, riskScore, detections, res.wasProxied, start, effectiveAction, res.actualAlias));
-            }
+                // Forward (F)
+                if ("F".equals(effectiveAction)) {
+                    if (severity == ThreatSeverity.CRITICAL && shieldProperties.isBlockCriticalRisk()) {
+                        return finalizeResult(sanitizedText, "BLOCKED: Critical risk score (" + riskScore + ").", severity, riskScore, detections, false, start, effectiveAction, forwardToAlias);
+                    }
 
-            // Default: Redact only
-            return finalizeResult(sanitizedText, null, severity, riskScore, detections, false, start, effectiveAction, null);
+                    return resolveDownstreamReactive(forwardToAlias)
+                            .flatMap(config -> proxyClient.forwardToDownstream(config, sanitizedText)
+                                    .map(llmResp -> new ProcessingResult(sanitizedText, llmResp, true, config.getAlias()))
+                                    .timeout(java.time.Duration.ofSeconds(60))
+                                    .onErrorResume(e -> {
+                                        log.error("Downstream failure: {}", e.getMessage());
+                                        return Mono.just(new ProcessingResult(sanitizedText, "Error: service temporarily unavailable — " + e.getMessage(), false, forwardToAlias));
+                                    }))
+                            .defaultIfEmpty(new ProcessingResult(sanitizedText, "Error: no active downstream gateway found", false, null))
+                            .flatMap(res -> finalizeResult(res.sanitizedText, res.llmResponse, severity, riskScore, detections, res.wasProxied, start, effectiveAction, res.actualAlias));
+                }
+
+                // Default: Redact only (R)
+                return finalizeResult(sanitizedText, null, severity, riskScore, detections, false, start, effectiveAction, null);
+            });
         });
     }
 
@@ -107,17 +111,57 @@ public class RedactionService {
 
     // -------------------------------------------------------------------------
 
+    /**
+     * Foolproof interval merging algorithm for robust redaction.
+     * Prevents StringIndexOutOfBounds and corrupted data when multiple
+     * detectors find overlapping PII (e.g., An Email embedded near a Phone number).
+     */
     private String applyRedactions(String text, List<DetectionMatch> matches) {
         if (matches.isEmpty()) return text;
+
+        // 1. Sort matches by Start Index (Ascending). If starts are equal, sort by End Index.
+        List<DetectionMatch> sorted = new java.util.ArrayList<>(matches);
+        sorted.sort(Comparator.comparingInt(DetectionMatch::start)
+                .thenComparingInt(DetectionMatch::end));
+
+        // 2. Merge overlapping intervals
+        List<DetectionMatch> mergedMatches = new java.util.ArrayList<>();
+        DetectionMatch current = sorted.get(0);
+
+        for (int i = 1; i < sorted.size(); i++) {
+            DetectionMatch next = sorted.get(i);
+            
+            // If overlapping or contiguous
+            if (next.start() <= current.end()) {
+                // Determine highest risk placeholder or combined placeholder
+                String mergedPlaceholder = current.riskWeight() >= next.riskWeight() ? current.placeholder() : next.placeholder();
+                
+                current = new DetectionMatch(
+                    current.detectorName().equals(next.detectorName()) ? current.detectorName() : "mixed",
+                    current.patternName() + "+" + next.patternName(), // audit tracking combo
+                    current.start(),
+                    Math.max(current.end(), next.end()),
+                    text.substring(current.start(), Math.max(current.end(), next.end())),
+                    Math.max(current.riskWeight(), next.riskWeight()),
+                    mergedPlaceholder
+                );
+            } else {
+                mergedMatches.add(current);
+                current = next;
+            }
+        }
+        mergedMatches.add(current);
+
+        // 3. Apply redactions from end-to-start (reverse order) to preserve indices
+        mergedMatches.sort(Comparator.comparingInt(DetectionMatch::start).reversed());
+        
         StringBuilder sb = new StringBuilder(text);
-        List<DetectionMatch> sorted = matches.stream()
-                .sorted(Comparator.comparingInt(DetectionMatch::start).reversed())
-                .toList();
-        for (DetectionMatch match : sorted) {
+        for (DetectionMatch match : mergedMatches) {
             if (match.end() <= sb.length()) {
                 sb.replace(match.start(), match.end(), match.placeholder());
             }
         }
+        
         return sb.toString();
     }
 
