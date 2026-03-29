@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artifact-Shield / Enterprise Edition</title>
+    <style>
+        :root {
+            --bg-base: #0f172a;
+            --bg-surface: #1e293b;
+            --bg-inset: #0b1120;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #60a5fa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: #334155;
+            --radius-md: 8px;
+            --font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--font-family);
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 250px;
+            background-color: var(--bg-surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 24px 20px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .sidebar-nav {
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .nav-item {
+            padding: 12px 20px;
+            color: var(--text-muted);
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .nav-item:hover {
+            color: var(--text-main);
+            background-color: rgba(255,255,255,0.03);
+        }
+        .nav-item.active {
+            color: var(--accent);
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background-color: var(--accent);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background-color: var(--bg-inset);
+        }
+        .header {
+            height: 70px;
+            background-color: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 32px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        .content-area {
+            padding: 32px;
+        }
+        .tab-pane {
+            display: none;
+        }
+        .tab-pane.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Typography & Utilities */
+        h1, h2, h3 { margin-top: 0; }
+        .text-muted { color: var(--text-muted); }
+        
+        /* Stats Dashboard */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Tables */
+        .table-container {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-top: 16px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background-color: rgba(0,0,0,0.2);
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background-color: rgba(255,255,255,0.02); }
+
+        /* Badges */
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge.clean { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .badge.low { background: rgba(59, 130, 246, 0.2); color: var(--accent); }
+        .badge.medium { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .badge.high { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .badge.critical { background: var(--danger); color: white; }
+        
+        /* Buttons */
+        .btn {
+            background-color: var(--bg-inset);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn:hover { background-color: var(--border); }
+        .btn-primary {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+        }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Forms */
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.9rem;}
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--bg-inset);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            🛡️ Artifact-Shield
+        </div>
+        <div class="sidebar-nav">
+            <a class="nav-item active" onclick="switchTab('dashboard', this)">Dashboard</a>
+            <a class="nav-item" onclick="switchTab('patterns', this)">Pattern Rules</a>
+            <a class="nav-item" onclick="switchTab('downstreams', this)">LLM Endpoints</a>
+            <a class="nav-item" onclick="switchTab('audit', this)">Audit Logs</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="header" id="page-title">
+            Dashboard Overview
+        </div>
+        <div class="content-area">
+
+            <!-- DASHBOARD TAB -->
+            <div id="tab-dashboard" class="tab-pane active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="text-muted">Total Requests Scanned</div>
+                        <div class="stat-value" id="stat-requests">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-muted">Active Patterns</div>
+                        <div class="stat-value" id="stat-patterns">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-muted">Configured Endpoints</div>
+                        <div class="stat-value" id="stat-downstreams">-</div>
+                    </div>
+                </div>
+                <h2>System Health</h2>
+                <p class="text-muted">The Artifact-Shield is actively intercepting and sanitizing traffic. Database loaded from local H2 file store.</p>
+                <div style="margin-top: 24px;">
+                    <a href="/swagger-ui.html" target="_blank" class="btn btn-primary">Open API Documentation (Swagger)</a>
+                </div>
+            </div>
+
+            <!-- PATTERNS TAB -->
+            <div id="tab-patterns" class="tab-pane">
+                <div class="header-actions">
+                    <p class="text-muted">Manage regular expressions used to identify and redact sensitive data (PII).</p>
+                    <button class="btn btn-primary">Add New Pattern</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Name</th>
+                                <th>Regex</th>
+                                <th>Risk Score</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patterns-tbody">
+                            <tr><td colspan="6" style="text-align: center;">Loading patterns...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- DOWNSTREAMS TAB -->
+            <div id="tab-downstreams" class="tab-pane">
+                <div class="header-actions">
+                    <p class="text-muted">Configure target LLM endpoints and SSL/mTLS certificates.</p>
+                    <button class="btn btn-primary">Add Endpoint</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Alias</th>
+                                <th>API URL</th>
+                                <th>Auth Type</th>
+                                <th>mTLS (Keystore)</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="downstreams-tbody">
+                            <tr><td colspan="6" style="text-align: center;">Loading endpoints...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- AUDIT LOGS TAB -->
+            <div id="tab-audit" class="tab-pane">
+                <div class="header-actions">
+                    <p class="text-muted">Compliance trail of recent sanitization requests (Anonymized).</p>
+                    <button class="btn" onclick="loadAuditLogs()">Refresh Logs</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Action</th>
+                                <th>Severity</th>
+                                <th>Score</th>
+                                <th>Detections</th>
+                                <th>Latency</th>
+                                <th>Proxied?</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-tbody">
+                            <tr><td colspan="7" style="text-align: center;">Loading audit logs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Tab Switching
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
+            
+            el.classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+            
+            const titles = {
+                'dashboard': 'Dashboard Overview',
+                'patterns': 'Pattern Rules',
+                'downstreams': 'LLM Endpoints',
+                'audit': 'Audit Compliance Logs'
+            };
+            document.getElementById('page-title').innerText = titles[tabId];
+
+            // Lazy load tab data
+            if (tabId === 'dashboard') loadStats();
+            if (tabId === 'patterns') loadPatterns();
+            if (tabId === 'downstreams') loadDownstreams();
+            if (tabId === 'audit') loadAuditLogs();
+        }
+
+        // Fetch Stats
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/admin/stats');
+                const data = await res.json();
+                document.getElementById('stat-requests').innerText = data.totalRequests;
+                document.getElementById('stat-patterns').innerText = data.totalPatterns;
+                document.getElementById('stat-downstreams').innerText = data.totalDownstreams;
+            } catch (e) {
+                console.error("Failed to load stats", e);
+            }
+        }
+
+        // Fetch Patterns
+        async function loadPatterns() {
+            try {
+                const res = await fetch('/api/admin/patterns');
+                const data = await res.json();
+                const tbody = document.getElementById('patterns-tbody');
+                tbody.innerHTML = '';
+                
+                data.forEach(p => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${p.detectorName.toUpperCase()}</td>
+                        <td><b>${p.patternName}</b></td>
+                        <td><code style="color:var(--accent); font-size:12px;">${p.regex.substring(0, 40)}${p.regex.length>40?'...':''}</code></td>
+                        <td>${p.riskWeight} pts</td>
+                        <td>
+                            <span class="badge ${p.enabled ? 'clean' : 'critical'}">${p.enabled ? 'Active' : 'Disabled'}</span>
+                        </td>
+                        <td>
+                            <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="togglePattern(${p.id})">
+                                ${p.enabled ? 'Disable' : 'Enable'}
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error("Failed to load patterns", e);
+            }
+        }
+
+        // Toggle Pattern
+        async function togglePattern(id) {
+            await fetch(`/api/admin/patterns/${id}/toggle`, { method: 'PATCH' });
+            loadPatterns();
+            loadStats();
+        }
+
+        // Fetch Downstreams
+        async function loadDownstreams() {
+            try {
+                const res = await fetch('/api/admin/downstreams');
+                const data = await res.json();
+                const tbody = document.getElementById('downstreams-tbody');
+                tbody.innerHTML = '';
+                
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No downstream targets configured.</td></tr>';
+                    return;
+                }
+
+                data.forEach(d => {
+                    const tr = document.createElement('tr');
+                    const hasSSL = !!d.keystorePath;
+                    tr.innerHTML = `
+                        <td><b>${d.alias}</b></td>
+                        <td style="max-width: 200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            <a href="${d.apiUrl}" target="_blank" style="color:var(--text-main);">${d.apiUrl}</a>
+                        </td>
+                        <td>${d.authType}</td>
+                        <td>${hasSSL ? '✅ Yes' : '❌ No'}</td>
+                        <td>
+                            <span class="badge ${d.enabled ? 'clean' : 'critical'}">${d.enabled ? 'Active' : 'Disabled'}</span>
+                        </td>
+                        <td>
+                            <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="toggleDownstream(${d.id})">
+                                ${d.enabled ? 'Disable' : 'Enable'}
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error("Failed to load downstreams", e);
+            }
+        }
+
+        // Toggle Downstream
+        async function toggleDownstream(id) {
+            await fetch(`/api/admin/downstreams/${id}/toggle`, { method: 'PATCH' });
+            loadDownstreams();
+        }
+
+        // Fetch Audit Logs
+        async function loadAuditLogs() {
+            try {
+                const res = await fetch('/api/admin/audit-logs?size=30');
+                const pageInfo = await res.json();
+                const data = pageInfo.content || [];
+                const tbody = document.getElementById('audit-tbody');
+                tbody.innerHTML = '';
+                
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No audit activity yet.</td></tr>';
+                    return;
+                }
+
+                data.forEach(a => {
+                    const d = new Date(a.timestamp);
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="font-size: 0.85rem; color:var(--text-muted);">${d.toLocaleString()}</td>
+                        <td><b>${a.action}</b></td>
+                        <td>
+                            <span class="badge ${a.severity ? a.severity.toLowerCase() : 'clean'}">
+                                ${a.severity}
+                            </span>
+                        </td>
+                        <td>${a.riskScore}</td>
+                        <td style="max-width: 250px; font-size:0.85rem; color:var(--text-muted);">${a.detectedPatterns || 'None'}</td>
+                        <td style="font-family: monospace;">${a.latencyMs}ms</td>
+                        <td>${a.proxied ? '✅ ' + (a.downstreamAlias||'') : '❌'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error("Failed to load audit logs", e);
+            }
+        }
+
+        // Init Default
+        loadStats();
+
+    </script>
+</body>
+</html>

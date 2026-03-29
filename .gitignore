@@ -1,16 +1,6 @@
-# Compiled class file
+# --- Compiled classes/Built artifacts ---
+target/
 *.class
-
-# Log file
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
 *.jar
 *.war
 *.nar
@@ -19,6 +9,35 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# --- Project Specifics (Artifact Shield) ---
+data/
+certs/*.p12
+!certs/.gitkeep
+*.log
+build_output.log
+test_compile.log
+scanner_test.log
+redaction_test.log
+red_test.log
+
+# --- IDEs / Editors ---
+.idea/
+*.iml
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+*.sublime-project
+*.sublime-workspace
+
+# --- OS generated files ---
+.DS_Store
+Thumbs.db
+
+# --- Crash & Temp files ---
 hs_err_pid*
 replay_pid*
+.mtj.tmp/
+*.ctxt

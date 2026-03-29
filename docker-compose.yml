@@ -1,0 +1,29 @@
+version: '3.9'
+
+services:
+  artifact-shield:
+    build:
+      context: .
+      target: runtime
+    image: dhoondlay/artifact-shield:1.0.0
+    container_name: artifact-shield
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JAVA_OPTS: >-
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75.0
+        -XX:+UseG1GC
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/v1/shield/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'

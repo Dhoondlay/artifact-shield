@@ -1,0 +1,107 @@
+spring:
+  application:
+    name: artifact-shield
+
+  datasource:
+    url: jdbc:h2:file:./data/shield_db;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+    # --- Connection Pooling (Hikari) ---
+    hikari:
+      pool-name: ShieldHikariCP
+      maximum-pool-size: 15
+      minimum-idle: 3
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  # --- Database / JPA Tuning ---
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc.batch_size: 25
+        order_inserts: true
+        order_updates: true
+
+  # --- H2 Console ---
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # --- SSL / MTLS Support (Client Side Calling Downstream) ---
+  # These are currently commented out to allow the application to start 
+  # without physical certificate files. Uncomment these ONLY after 
+  # placing .p12 files in the ./certs directory.
+  # ssl:
+  #   bundle:
+  #     jks:
+  #       downstream-client:
+  #         key:
+  #           alias: shield-client
+  #           keystore:
+  #             location: "file:./certs/shield-keystore.p12"
+  #             password: "changeit"
+  #             type: PKCS12
+  #         truststore:
+  #           location: "file:./certs/downstream-truststore.p12"
+  #           password: "changeit"
+  #           type: PKCS12
+
+server:
+  port: 8080
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/xml,text/plain
+  # --- SSL (Server Entry Point) ---
+  # ssl:
+  #   key-store: "file:./certs/server-keystore.p12"
+  #   key-store-password: "changeit"
+
+shield:
+  enabled: true
+  max-input-length: 32000
+  score-thresholds:
+    low: 20
+    medium: 50
+    high: 75
+
+  # --- Splunk Enterprise Integration ---
+  logging:
+    splunk:
+      enabled: false
+      url: "http://splunk.your-corp.local:8088/services/collector/event"
+      token: "YOUR-TOKEN"
+
+  # --- Enterprise Security (Optional) ---
+  security:
+    enabled: false         # Set to true to enable OAuth2/JWT protection
+    cors-enabled: true     # Enable CORS for frontend dashboard
+    # Placeholders used by Spring Security below
+    jwt-issuer-uri: "https://your-org.auth-provider.com/realms/your-realm"
+    jwt-jwk-set-uri: "https://your-org.auth-provider.com/realms/your-realm/protocol/openid-connect/certs"
+
+# Standard Spring Security OAuth2 Configuration (Mapped to actual Spring variables)
+# Uncomment these only when you have a live OIDC Provider (Okta, Keycloak, etc.)
+# spring.security.oauth2.resourceserver.jwt:
+#   issuer-uri: ${shield.security.jwt-issuer-uri}
+#   jwk-set-uri: ${shield.security.jwt-jwk-set-uri}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"       # health, info, prometheus, metrics, env, logs, beans
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
